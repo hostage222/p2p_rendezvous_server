@@ -14,9 +14,10 @@ IF (UNIX)
   find_package(Threads)
 ENDIF()
 
-include_directories(${Boost_INCLUDE_DIR})
+include_directories(${Boost_INCLUDE_DIR} common)
 
 aux_source_directory(. SRC_LIST)
+aux_source_directory(common SRC_LIST)
 add_executable(${PROJECT_NAME} ${SRC_LIST})
 
 target_link_libraries(${PROJECT_NAME} ${Boost_LIBRARIES})

@@ -1,6 +1,6 @@
 #include "server.h"
 
-server::server()
+server::server(uint16_t port)
 {
 
 }
