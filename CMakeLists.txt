@@ -9,7 +9,7 @@ if (CMAKE_BUILD_TYPE==Debug)
   add_definitions(-D_GLIBCXX_DEBUG)
 ENDIF()
 
-find_package(Boost 1.40 COMPONENTS system date_time REQUIRED)
+find_package(Boost 1.40 COMPONENTS system date_time filesystem REQUIRED)
 IF (UNIX)
   find_package(Threads)
 ENDIF()

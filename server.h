@@ -13,7 +13,7 @@
 class server : public server_interface,
         public std::enable_shared_from_this<server>
 {
-    static constexpr p2p::version_type version = {0, 0, 0};
+    static constexpr p2p::version_type version = {1, 2, 3};
     server(uint16_t port);
 
 public:

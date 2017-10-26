@@ -8,6 +8,7 @@
 #include <boost/asio.hpp>
 
 #include "p2p_common.h"
+#include "database.h"
 
 using namespace std;
 using namespace p2p;
@@ -16,13 +17,21 @@ using boost::asio::ip::tcp;
 using boost_error = boost::system::error_code;
 
 const std::map<std::string, connection::handler> connection::handlers = {
-    {p2p::GET_VERSION, connection::get_version_handler}
+    {p2p::GET_VERSION, connection::get_version_handler},
+    {p2p::REGISTER, connection::register_handler},
+    {p2p::UNREGISTER, connection::unregister_handler},
+    {p2p::AUTORIZE, connection::autorize_handler}
 };
 
 connection::connection(server_interface_ptr server,
                        boost::asio::io_service &service) :
     server{server}, sock{service}
 {
+}
+
+connection::~connection()
+{
+    database::instance().unautorize(phone);
 }
 
 connection::ptr connection::create(connection::server_interface_ptr server,
@@ -67,12 +76,14 @@ void connection::read(boost_error error, size_t bytes)
 
     if (p2p::is_valid_message(buf, bytes))
     {
+        buf_size = bytes;
         process_request();
     }
     else
     {
         p2p::write_command(buf, buf_size, p2p::INVALID_FORMAT);
     }
+    p2p::finalize(buf, buf_size);
 
     start_write();
 }
@@ -111,14 +122,65 @@ void connection::process_request()
 
 void connection::get_version_handler(buf_sequence params)
 {
-    if (p2p::is_empty(params))
+    if (!test_emptiness(params))
     {
-        p2p::write_command(buf, buf_size, p2p::GET_VERSION);
-        auto version = server.lock()->get_version();
-        p2p::append_param(buf, buf_size, p2p::to_string(version));
+        return;
     }
-    else
+
+    auto version = server.lock()->get_version();
+    p2p::write_command(buf, buf_size, p2p::GET_VERSION);
+    p2p::append_param(buf, buf_size, p2p::to_string(version));
+}
+
+void connection::register_handler(buf_sequence params)
+{
+    string phone = p2p::read_string(params);
+    string password = p2p::read_string(params);
+    string code = p2p::read_string(params);
+    if (!test_emptiness(params))
+    {
+        return;
+    }
+
+    string res = database::instance().register_(phone, password, code);
+    p2p::write_command(buf, buf_size, p2p::REGISTER);
+    p2p::append_param(buf, buf_size, res);
+}
+
+void connection::unregister_handler(buf_sequence params)
+{
+    string phone = p2p::read_string(params);
+    string password = p2p::read_string(params);
+    if (!test_emptiness(params))
+    {
+        return;
+    }
+
+    string res = database::instance().unregister(phone, password);
+    p2p::write_command(buf, buf_size, p2p::UNREGISTER);
+    p2p::append_param(buf, buf_size, res);
+}
+
+void connection::autorize_handler(buf_sequence params)
+{
+    phone = p2p::read_string(params);
+    string password = p2p::read_string(params);
+    if (!test_emptiness(params))
+    {
+        return;
+    }
+
+    string res = database::instance().autorize(phone, password);
+    p2p::write_command(buf, buf_size, p2p::AUTORIZE);
+    p2p::append_param(buf, buf_size, res);
+}
+
+bool connection::test_emptiness(buf_sequence params)
+{
+    if (!p2p::is_empty(params))
     {
         p2p::write_command(buf, buf_size, p2p::INVALID_DATA);
+        return false;
     }
+    return true;
 }
